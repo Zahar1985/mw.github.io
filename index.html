@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Ukraine Water Well</title>
+    <link rel="icon" href="data/waterdrop.png" type="image/png">
+
+    <link href="assets/leaflet-0.7.7/leaflet.css" rel="stylesheet" />
+    <link href="assets/leaflet.markercluster/MarkerCluster.css" rel="stylesheet" />
+    <link href="assets/leaflet.markercluster/MarkerCluster.Default.css" rel="stylesheet" />
+
+</head>
+
+<body>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+        
+        html,
+        body,
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 3px;
+        }
+        
+        .leaflet-popup-content {
+            margin: 5px 20px 5px 5px;
+        }
+        
+        a {
+            text-decoration: none;
+        }
+        
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .legend {
+            line-height: 26px;
+            color: #555;
+        }
+        
+        .legend img {
+            width: 26px;
+            height: 26px;
+            float: left;
+            margin-right: 8px;
+        }
+    </style>
+
+    <div id="map"></div>
+
+    <script src="assets/jquery-1.11.1.min.js"></script>
+    <script src="assets/leaflet-0.7.7/leaflet.js"></script>
+    <script src="assets/leaflet.markercluster/leaflet.markercluster.js"></script>
+    <script src="assets/spin.min.js"></script>
+    <script src="assets/leaflet.spin.min.js"></script>
+
+    <script>
+        "use strict";
+        
+        var access_token = 'pk.eyJ1IjoiaGFzdCIsImEiOiJjaXFxZmdheXEwMDZjaHNtYTdid3ZudWdsIn0.co1GT25Bbo6tWToF3MMWtA';
+        
+        var layerMapboxStreets = new L.tileLayer('https://b.tiles.mapbox.com/v4/mapbox.streets/{z}/{x}/{y}.png?access_token=' + access_token, {
+            attribution: 'Tiles &copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+        });
+
+        var layerMapboxImagery = new L.tileLayer('https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.png?access_token=' + access_token, {
+            attribution: 'Tiles &copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+        });
+
+        var map = new L.map('map', {
+            minZoom: 3,
+            maxZoom: 17
+        });
+
+        map.attributionControl.addAttribution('Icons &copy; <a href="https://mapicons.mapsmarker.com/">Map Icons Collection</a>');
+        
+        layerMapboxStreets.addTo(map)
+
+        var baseMaps = {
+            "Mapbox Streets": layerMapboxStreets,
+            "Mapbox Imagery": layerMapboxImagery
+        };
+
+        L.control.layers(baseMaps, null, {
+            collapsed: false
+        }).addTo(map);
+
+        var markerClusters = new L.MarkerClusterGroup({
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: true,
+            zoomToBoundsOnClick: true,
+            disableClusteringAtZoom: 18
+        });
+        map.addLayer(markerClusters);
+
+        var markerIcon = {
+            "Джерело": "data/waterdrop.png",
+            "Свердловина": "data/waterdrop1.png"
+        };
+
+        var pilotsLayer = L.geoJson(null, {
+            pointToLayer: function(feature, latlng) {
+                return L.marker(latlng, {
+                    icon: L.icon({
+                        iconUrl: markerIcon[feature.properties.type_vodopunkt],
+                        iconSize: [32, 37],
+                        iconAnchor: [16, 36],
+                        popupAnchor: [0, -36]
+                    }),
+                    title: feature.properties.nazva,
+                    riseOnHover: true
+                });
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties) {
+                    var nazva = feature.properties.nazva ? '<b>Name: </b>' + feature.properties.nazva + '</br>' : '';
+                    var type_produkt = feature.properties.type_produkt ? '<b>Type product: </b>' + feature.properties.type_produkt + '</br>' : '';
+                    var type_vodopunkt = feature.properties.type_vodopunkt ? '<b>Type vodopunkt: </b>' + feature.properties.type_vodopunkt + '</br>' : '';
+                    var n_vodopunktu = feature.properties.n_vodopunktu ? '<b>№ vodopunktu: </b>' + feature.properties.n_vodopunktu + '</br>' : '';
+                    var address = '<b>Address: </b>' + feature.properties.nazva_oblast + ' область, ' + feature.properties.nazva_raion + ' район, ' + feature.properties.nasel_punkt;
+
+                    var content = nazva + type_produkt + type_vodopunkt + n_vodopunktu + address;
+                    layer.bindPopup(content);
+                };
+            }
+        });
+
+        map.spin(true, {
+            lines: 10,
+            length: 40
+        });
+
+        $.getJSON("data/water_well_point.geojson", function(data) {
+            pilotsLayer.addData(data);
+            markerClusters.addLayer(pilotsLayer);
+            map.fitBounds(markerClusters);
+            map.spin(false);
+            legend.addTo(map);
+        });
+
+  
+        var legend = L.control({
+            position: 'bottomleft'
+        });
+
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'info legend'),
+                labels = [];
+
+            for (var item in markerIcon) {
+
+                labels.push('<img src=' + markerIcon[item] + '> ' + item);
+
+            };
+
+            div.innerHTML = labels.join('<br>');
+            return div;
+        };
+   
+
+    </script>
+</body>
+
+</html>
